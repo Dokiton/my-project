@@ -6,6 +6,14 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
 
+    @property
+    def app_name(self) -> str:
+        return self.PROJECT_NAME
+
+    @property
+    def environment(self) -> str:
+        return self.ENVIRONMENT
+
     # Database (PostgreSQL)
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
