@@ -24,10 +24,10 @@ def db_session():
 @pytest.fixture
 def teacher(db_session: Session) -> User:
     user = User(
+        keycloak_id=f"kc-{uuid.uuid4().hex[:12]}",
         email=f"teacher_{uuid.uuid4().hex[:8]}@example.com",
         full_name="Teacher User",
         role="teacher",
-        hashed_password="dummy_hashed_password",
     )
     db_session.add(user)
     db_session.commit()

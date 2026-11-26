@@ -48,8 +48,25 @@ class Settings(BaseSettings):
     # Keycloak (OIDC)
     KEYCLOAK_SERVER_URL: str = "http://localhost:8080"
     KEYCLOAK_REALM: str = "edu-realm"
-    KEYCLOAK_CLIENT_ID: str = "backend-client"
+    KEYCLOAK_ISSUER: str | None = None
+    KEYCLOAK_JWKS_URL: str | None = None
+    KEYCLOAK_CLIENT_ID: str = "edu-web"
+    KEYCLOAK_AUDIENCE: str = "edu-api"
     KEYCLOAK_CLIENT_SECRET: str = "dummy_secret"
+
+    @property
+    def keycloak_issuer(self) -> str:
+        if self.KEYCLOAK_ISSUER:
+            return self.KEYCLOAK_ISSUER.rstrip("/")
+        base = self.KEYCLOAK_SERVER_URL.rstrip("/")
+        return f"{base}/realms/{self.KEYCLOAK_REALM}"
+
+    @property
+    def keycloak_jwks_url(self) -> str:
+        return (
+            self.KEYCLOAK_JWKS_URL
+            or f"{self.keycloak_issuer}/protocol/openid-connect/certs"
+        )
 
     # Ollama LLM
     OLLAMA_BASE_URL: str = "http://localhost:11434"

@@ -1,0 +1,157 @@
+{
+  "realm": "edu-realm",
+  "displayName": "Educational AI Platform",
+  "enabled": true,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "student",
+        "description": "Білім алушы: курстарға жазылу, тест тапсыру, ЖИ-дан кеңес алу"
+      },
+      {
+        "name": "teacher",
+        "description": "Оқытушы: курстар, тапсырмалар және тесттерді басқару"
+      },
+      {
+        "name": "admin",
+        "description": "Платформа әкімшісі: пайдаланушылар мен жүйені басқару"
+      },
+      {
+        "name": "offline_access",
+        "description": "${role_offline-access}",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "default-roles-edu-realm",
+        "description": "Жаңа тіркелген пайдаланушыларға берілетін әдепкі рөл (student)",
+        "composite": true,
+        "clientRole": false,
+        "composites": {
+          "realm": [
+            "student",
+            "offline_access",
+            "uma_authorization"
+          ]
+        }
+      }
+    ]
+  },
+  "defaultRole": {
+    "name": "default-roles-edu-realm",
+    "description": "Жаңа тіркелген пайдаланушыларға берілетін әдепкі рөл (student)",
+    "composite": true,
+    "composites": {
+      "realm": [
+        "student",
+        "offline_access",
+        "uma_authorization"
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "edu-web",
+      "name": "Educational AI Platform Web & Swagger",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "redirectUris": [
+        "http://localhost:8000/*",
+        "http://127.0.0.1:8000/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3000"
+      ],
+      "protocolMappers": [
+        {
+          "name": "edu-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "edu-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "student@demo.kz",
+      "email": "student@demo.kz",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "Student",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-pass-123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "student"
+      ]
+    },
+    {
+      "username": "teacher@demo.kz",
+      "email": "teacher@demo.kz",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "Teacher",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-pass-123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "teacher"
+      ]
+    },
+    {
+      "username": "admin@demo.kz",
+      "email": "admin@demo.kz",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-pass-123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    }
+  ]
+}
