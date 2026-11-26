@@ -8,4 +8,5 @@ asyncpg>=0.30.0
 greenlet>=3.1.0
 alembic>=1.14.0
 httpx>=0.28.0
+pyjwt[crypto]==2.15.1
 

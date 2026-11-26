@@ -1,76 +1,77 @@
-import uuid
+import logging
 from collections.abc import Callable
+from functools import lru_cache
 
-from fastapi import Depends, Header, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2AuthorizationCodeBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import decode_access_token
+from app.core.security import (
+    AuthUnavailableError,
+    KeycloakVerifier,
+    identity_from_claims,
+)
 from app.models.user import User
+from app.repositories.user_repository import UserRepository
 
-bearer_scheme = HTTPBearer(auto_error=False)
+logger = logging.getLogger(__name__)
+oauth2_scheme = OAuth2AuthorizationCodeBearer(
+    authorizationUrl=f"{settings.keycloak_issuer}/protocol/openid-connect/auth",
+    tokenUrl=f"{settings.keycloak_issuer}/protocol/openid-connect/token",
+    scopes={"openid": "OpenID Connect"},
+    auto_error=False,
+)
+
+
+@lru_cache(maxsize=1)
+def get_keycloak_verifier() -> KeycloakVerifier:
+    """Keycloak JWT тексерушісін кэшпен инициализациялау."""
+    return KeycloakVerifier(
+        issuer=settings.keycloak_issuer,
+        jwks_url=settings.keycloak_jwks_url,
+        audience=settings.KEYCLOAK_AUDIENCE,
+    )
 
 
 def get_current_user(
-    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
+    verifier: KeycloakVerifier = Depends(get_keycloak_verifier),
 ) -> User:
-    """Пайдаланушыны X-User-Id немесе Bearer токен арқылы анықтау."""
-    # 1. Тікелей X-User-Id тақырыбы арқылы тексеру (тесттер мен клиенттер үшін)
-    if x_user_id:
-        try:
-            uid = uuid.UUID(x_user_id)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Жарамсыз X-User-Id",
-            )
-        user = db.get(User, uid)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Пайдаланушы табылмады",
-            )
-        return user
+    """Пайдаланушыны Keycloak Bearer токені арқылы тексеріп анықтау."""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Авторизация қажет (Bearer токен)",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    # 2. Bearer токен арқылы тексеру
-    if credentials:
-        payload = decode_access_token(credentials.credentials)
-        if not payload:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Токен жарамсыз немесе мерзімі өткен",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        user_id_str = payload.get("sub")
-        if not user_id_str:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Токенде пайдаланушы мәліметі табылмады",
-            )
-        try:
-            uid = uuid.UUID(user_id_str)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Жарамсыз пайдаланушы идентификаторы",
-            )
-        user = db.get(User, uid)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Пайдаланушы табылмады",
-            )
-        return user
+    try:
+        claims = verifier.verify(token)
+        identity = identity_from_claims(claims)
+    except AuthUnavailableError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Keycloak қолжетімсіз",
+        )
+    except (jwt.PyJWTError, KeyError, ValueError) as exc:
+        logger.warning("Токен қабылданбады: %s: %s", type(exc).__name__, exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Токен жоқ, қате немесе мерзімі өткен",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    # 3. Екеуі де жоқ болса
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Авторизация қажет (X-User-Id немесе Bearer токен)",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    if identity.role is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Keycloak-та қосымша рөлі берілмеген",
+        )
+
+    return UserRepository(db).sync(identity, identity.role)
 
 
 def require_roles(*roles: str) -> Callable[[User], User]:
@@ -80,7 +81,10 @@ def require_roles(*roles: str) -> Callable[[User], User]:
         if current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Бұл әрекетті орындауға құқығыңыз жоқ. Қажетті рөл: {', '.join(roles)}",
+                detail=(
+                    "Бұл әрекетті орындауға құқығыңыз жоқ. "
+                    f"Қажетті рөл: {', '.join(roles)}"
+                ),
             )
         return current_user
 

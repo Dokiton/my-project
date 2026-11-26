@@ -12,7 +12,7 @@ from app.schemas.submission import (
     SubmissionGradeUpdate,
     SubmissionRead,
 )
-from app.schemas.user import LoginResponse, UserLogin, UserRead, UserRegister
+from app.schemas.user import UserRead
 
 __all__ = [
     "AssignmentCreate",
@@ -23,12 +23,9 @@ __all__ = [
     "CourseRead",
     "CourseUpdate",
     "HealthRead",
-    "LoginResponse",
     "StudentSubmissionResult",
     "SubmissionCreate",
     "SubmissionGradeUpdate",
     "SubmissionRead",
-    "UserLogin",
     "UserRead",
-    "UserRegister",
 ]

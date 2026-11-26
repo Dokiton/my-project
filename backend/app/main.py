@@ -26,15 +26,19 @@ app = FastAPI(
     title=settings.app_name,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
+    swagger_ui_init_oauth={
+        "clientId": settings.KEYCLOAK_CLIENT_ID,
+        "usePkceWithAuthorizationCodeGrant": True,
+        "scopes": "openid",
+    },
     lifespan=lifespan,
 )
 
 # Негізгі сервистік роутер
 app.include_router(health_router)
 
-# Модуль 1–2: Аутентификация (/api/auth және /api/v1/auth)
+# Модуль 1–2: Аутентификация (/api/auth/me)
 app.include_router(auth_router, prefix="/api")
-app.include_router(auth_router, prefix="/api/v1")
 
 # Модуль 3: Пайдаланушыларды басқару және жеке кабинет (/api/users)
 app.include_router(users_router)
